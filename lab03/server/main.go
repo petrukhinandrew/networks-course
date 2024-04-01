@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	// "time"
 )
 
 func main() {
@@ -16,6 +17,7 @@ func main() {
 	boundFlag := flag.Int("b", -1, "concurrency level")
 
 	flag.Parse()
+	log.Println("Flags parsed")
 	if flag.NArg() != 0 {
 		flag.Usage()
 		os.Exit(1)
@@ -30,6 +32,8 @@ func main() {
 	host := "localhost"
 	port := fmt.Sprintf("%d", *portFlag)
 	addr := host + ":" + port
+	log.Printf("Serving on %s\n", addr)
+	log.Printf("Running mode %s\n", *modeFlag)
 	switch *modeFlag {
 	case "simple":
 		runSimpleServer(addr)
@@ -42,7 +46,7 @@ func main() {
 			runBoundServer(addr, *boundFlag)
 		}
 	default:
-		panic("Mode not supported: " + *modeFlag)
+		log.Fatalln("Mode not supported: " + *modeFlag)
 	}
 }
 
@@ -58,6 +62,7 @@ func runSimpleServer(addr string) {
 		if err != nil {
 			log.Printf("Error accepting - %s", err.Error())
 		}
+		log.Printf("Accepted connection %v\n", conn.LocalAddr())
 		handleConn(conn)
 	}
 }
@@ -147,6 +152,7 @@ func handleBound(runners chan struct{}, reqs chan net.Conn) {
 		runners <- struct{}{}
 		go func(retChan chan struct{}) {
 			handleConn(req)
+			// time.Sleep(time.Second)
 			<-retChan
 		}(runners)
 	}
