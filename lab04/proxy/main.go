@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -17,19 +19,34 @@ type Logger struct {
 	Reqs  log.Logger
 	Debug log.Logger
 }
-type ProxyCache struct{}
+
+type ProxyCacheEntry struct {
+	body    []byte
+	lastMod string
+}
+
 type ProxyConfig struct {
-	addr  string
-	cache ProxyCache
+	addr      string
+	cache     map[string]*ProxyCacheEntry
+	blacklist []string
 }
 
 func NewProxyConfig() *ProxyConfig {
-	return &ProxyConfig{}
+	return &ProxyConfig{addr: "", cache: make(map[string]*ProxyCacheEntry)}
 }
 
 var myLog Logger
 var config = NewProxyConfig()
 
+//go:embed blacklist.txt
+var blackpool string
+
+func setupBlacklist() {
+	blacklist := strings.Split(blackpool, "\n")
+	for _, e := range blacklist {
+		config.blacklist = append(config.blacklist, dropAnchor(dropHTTP(e)))
+	}
+}
 func main() {
 	portFlag := flag.Int("p", 8080, "port")
 	hostFlag := flag.String("h", "localhost", "host")
@@ -45,7 +62,7 @@ func main() {
 	myLog.Debug.SetOutput(os.Stdout)
 
 	config.addr = fmt.Sprintf("%s:%d", *hostFlag, *portFlag)
-
+	setupBlacklist()
 	myLog.Debug.Printf("Starting proxy on %s", config.addr)
 
 	mux := slashfix.NewSkipSlashMux()
@@ -58,22 +75,65 @@ func main() {
 }
 func interceptReferer(req *http.Request) (string, error) {
 	res := req.RequestURI
-	for k, v := range req.Header {
-		if k == "Referer" {
-			if len(v) < 1 {
-				return "", errors.New("bad referer header")
-			}
-			src := v[0]
-			myLog.Debug.Printf("Handling referer: %s\n", src)
-			src = strings.TrimPrefix(src, "http://")
-			src = strings.TrimPrefix(src, "https://")
-			if target := strings.TrimPrefix(src, config.addr); target != src {
-				myLog.Debug.Printf("Composed URI: %s\n", target+res)
-				return target + res, nil
-			}
+	referer := req.Header.Get("Referer")
+	if referer == "" {
+		return res, nil
+	}
+	myLog.Debug.Printf("Handling referer: %s\n", referer)
+	referer = strings.TrimPrefix(referer, "http://")
+	referer = strings.TrimPrefix(referer, "https://")
+	if target := strings.TrimPrefix(referer, config.addr); target != referer {
+		myLog.Debug.Printf("Composed URI: %s\n", target+res)
+		return target + res, nil
+	}
+	return "", errors.New("bad referrer " + referer)
+}
+
+func newProxyCacheEntry(url string, resp *http.Response, body *bytes.Buffer) (err error) {
+	newEntry := &ProxyCacheEntry{}
+	newEntry.body, err = io.ReadAll(body)
+	if err != nil {
+		return
+	}
+	newEntry.lastMod = resp.Header["Date"][0]
+	config.cache[url] = newEntry
+	return nil
+}
+
+func checkProxyCache(url string) (*ProxyCacheEntry, bool) {
+	if v, ok := config.cache[url]; ok {
+		myLog.Debug.Printf("Found cache entry for %s\n", url)
+		return v, ok
+	}
+	myLog.Debug.Printf("No cache entry for %s\n", url)
+	return nil, false
+}
+
+func checkNotModified(url string, cached *ProxyCacheEntry) (bool, error) {
+	tmpClient := http.Client{}
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		myLog.Debug.Printf("Error making request for %s\n", url)
+		return false, err
+	}
+	req.Header["If-Modified-Since"] = []string{cached.lastMod}
+	// req.Header["If-None-Match"] = []string{cached.etag}
+	resp, err := tmpClient.Do(req)
+	if err != nil {
+		return false, err
+	}
+	myLog.Debug.Printf("Got mod response for %s got %s\n", url, resp.Status)
+	return resp.StatusCode == http.StatusNotModified, nil
+}
+
+func blacklistLookup(url string) bool {
+	target := dropAnchor(dropHTTP(url))
+	for _, e := range config.blacklist {
+		if e == target {
+			return true
 		}
 	}
-	return res, nil
+	return false
 }
 
 func proxyHandler(w http.ResponseWriter, req *http.Request) {
@@ -96,6 +156,26 @@ func proxyHandler(w http.ResponseWriter, req *http.Request) {
 	targetURL = strings.Replace(targetURL, "https:/", "http:/", 1)
 	targetURL = strings.Replace(targetURL, "http:/", "http://", 1)
 	targetURL = strings.Replace(targetURL, "http:///", "http://", 1)
+	if blacklistLookup(targetURL) {
+		w.WriteHeader(http.StatusForbidden)
+		myLog.Reqs.Printf("URL: %s, Status: %d, Method: %s found in black list\n", targetURL, http.StatusForbidden, http.MethodGet)
+		myLog.Debug.Printf("Black list entry found %s\n", targetURL)
+		return
+	}
+	if entry, cached := checkProxyCache(targetURL); cached {
+		if notMod, err := checkNotModified(targetURL, entry); err == nil && notMod {
+			w.WriteHeader(http.StatusOK)
+			var n int
+			if n, err = w.Write(entry.body); err != nil {
+				myLog.Debug.Printf("Error writing body - %s\n", err.Error())
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			myLog.Reqs.Printf("URL: %s, Status: %d, Method: %s from cache %d bytes\n", targetURL, http.StatusOK, http.MethodGet, n)
+			myLog.Debug.Printf("Written body from cache %d bytes for %s with response %d\n", n, targetURL, http.StatusOK)
+			return
+		}
+	}
 
 	myLog.Debug.Printf("Target URL is %s\n", targetURL)
 
@@ -115,8 +195,9 @@ func proxyHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	defer targetResp.Body.Close()
-
-	targetBody, err := io.ReadAll(targetResp.Body)
+	var targetBodyBuf bytes.Buffer
+	teeReader := io.TeeReader(targetResp.Body, &targetBodyBuf)
+	targetBody, err := io.ReadAll(teeReader)
 	if err != nil {
 		myLog.Debug.Printf("Error reading target body - %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -134,5 +215,15 @@ func proxyHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	myLog.Debug.Printf("Written response %d\n", targetResp.StatusCode)
+	if err = newProxyCacheEntry(targetURL, targetResp, &targetBodyBuf); err != nil {
+		myLog.Debug.Printf("Error updating cache %s\n", err.Error())
+	}
 	myLog.Reqs.Printf("URL: %s, Status: %s, Method: %s\n", targetResp.Request.URL.String(), targetResp.Status, targetReq.Method)
+}
+
+func dropHTTP(url string) string {
+	return strings.TrimPrefix(strings.TrimPrefix(url, "https://"), "http://")
+}
+func dropAnchor(url string) string {
+	return strings.Split(url, "#")[0]
 }
