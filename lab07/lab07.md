@@ -92,6 +92,10 @@ todo
 Если пакет прибывает, то сервер просто изменяет символы входящего сообщения на заглавные и
 отправляет их обратно клиенту. Серверный код должен моделировать 20% потерю пакетов.
 
+#### Демонстрация работы
+
+![](images/server-sol.png)
+
 ### Б. Клиентская часть (2 балла)
 Клиент должен отправить 10 эхо-запросов серверу. Поскольку UDP является ненадежным с точки
 зрения доставки протоколом, то пакет, отправленный от клиента к серверу или наоборот, может
@@ -115,7 +119,9 @@ todo
 Сделайте скриншоты, подтверждающие корректную работу вашей программы пингования со стороны клиента.
 
 #### Демонстрация работы
-todo
+
+В логах есть поле `got n bytes response ... time=t`, где `t` - RTT
+![](images/client-sol.png)
 
 ### В. Вывод в формате ping (2 балла)
 Версия клиента из предыдущей части (Б) вычисляет время оборота для каждого пакета и выводит
@@ -127,7 +133,8 @@ todo
 процентах).
 
 #### Демонстрация работы
-todo
+
+![](images/client-loss.png)
 
 ### Г. UDP Heartbeat (4 балла)
 UDP Heartbeat (монитор доступности) подобен программе пингования. Он может быть
@@ -148,7 +155,292 @@ UDP Heartbeat (монитор доступности) подобен прогр�
 Протестируйте такой сценарий.
 
 #### Демонстрация работы
-todo
+
+Формат запроса серверу `HB X TS` где `X` - номер пакета, `TS` время в формате RFC3339Nano
+
+![](images/heartbeat.png)
+
+Скриншот для 5 одновременных клиентов не входит, поэтому прикладываю логи
+
+В логах сервера последние 2 клиента удаляются из пула через 9 секунд (хотя должны через 5) из-за "костыльного" использования каналов Go. Как-нибудь я обязательно это починю
+
+Сервер:
+```bash
+petrukhinandrew@petrukhinandrew:~/Documents/networks-course/lab07/echo-server/server$ go run main.go -m heartbeat -t 5
+2024/04/04 17:08:01 Serving on :8080
+2024/04/04 17:08:01 running heartbeat mode
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:52107
+2024/04/04 17:08:04 127.0.0.1:52107 status: last packet 1 at 2024-04-04 17:08:04.907388767 +0300 MSK with 0.000000% loss
+2024/04/04 17:08:04 sent response to 127.0.0.1:52107
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:52107
+2024/04/04 17:08:04 127.0.0.1:52107 status: last packet 2 at 2024-04-04 17:08:04.9075857 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:04 sent response to 127.0.0.1:52107
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:52107
+2024/04/04 17:08:04 127.0.0.1:52107 status: last packet 3 at 2024-04-04 17:08:04.907670917 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:04 sent response to 127.0.0.1:52107
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:52107
+2024/04/04 17:08:04 127.0.0.1:52107 status: last packet 4 at 2024-04-04 17:08:04.907720254 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:04 sent response to 127.0.0.1:52107
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:52107
+2024/04/04 17:08:04 127.0.0.1:52107 status: last packet 5 at 2024-04-04 17:08:04.907761228 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:04 sent response to 127.0.0.1:52107
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:52107
+2024/04/04 17:08:04 127.0.0.1:52107 status: last packet 6 at 2024-04-04 17:08:04.907792195 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:04 sent response to 127.0.0.1:52107
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:52107
+2024/04/04 17:08:04 simulating 20%% loss
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:58382
+2024/04/04 17:08:04 127.0.0.1:58382 status: last packet 1 at 2024-04-04 17:08:04.918162608 +0300 MSK with 0.000000% loss
+2024/04/04 17:08:04 sent response to 127.0.0.1:58382
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:58382
+2024/04/04 17:08:04 simulating 20%% loss
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:42528
+2024/04/04 17:08:04 simulating 20%% loss
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:43525
+2024/04/04 17:08:04 127.0.0.1:43525 status: last packet 1 at 2024-04-04 17:08:04.938979389 +0300 MSK with 0.000000% loss
+2024/04/04 17:08:04 sent response to 127.0.0.1:43525
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:43525
+2024/04/04 17:08:04 127.0.0.1:43525 status: last packet 2 at 2024-04-04 17:08:04.939149682 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:04 sent response to 127.0.0.1:43525
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:43525
+2024/04/04 17:08:04 127.0.0.1:43525 status: last packet 3 at 2024-04-04 17:08:04.93923012 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:04 sent response to 127.0.0.1:43525
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:43525
+2024/04/04 17:08:04 127.0.0.1:43525 status: last packet 4 at 2024-04-04 17:08:04.939322258 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:04 sent response to 127.0.0.1:43525
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:43525
+2024/04/04 17:08:04 127.0.0.1:43525 status: last packet 5 at 2024-04-04 17:08:04.939359118 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:04 sent response to 127.0.0.1:43525
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:43525
+2024/04/04 17:08:04 simulating 20%% loss
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:35496
+2024/04/04 17:08:04 127.0.0.1:35496 status: last packet 1 at 2024-04-04 17:08:04.949745321 +0300 MSK with 0.000000% loss
+2024/04/04 17:08:04 sent response to 127.0.0.1:35496
+2024/04/04 17:08:04 got package bytes from 127.0.0.1:35496
+2024/04/04 17:08:04 simulating 20%% loss
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:52107
+2024/04/04 17:08:05 127.0.0.1:52107 status: last packet 8 at 2024-04-04 17:08:05.908454477 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:52107
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:52107
+2024/04/04 17:08:05 127.0.0.1:52107 status: last packet 9 at 2024-04-04 17:08:05.908770755 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:52107
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:52107
+2024/04/04 17:08:05 simulating 20%% loss
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:58382
+2024/04/04 17:08:05 127.0.0.1:58382 status: last packet 3 at 2024-04-04 17:08:05.919192971 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:58382
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:58382
+2024/04/04 17:08:05 127.0.0.1:58382 status: last packet 4 at 2024-04-04 17:08:05.919460351 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:58382
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:58382
+2024/04/04 17:08:05 127.0.0.1:58382 status: last packet 5 at 2024-04-04 17:08:05.91974336 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:58382
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:58382
+2024/04/04 17:08:05 simulating 20%% loss
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:42528
+2024/04/04 17:08:05 127.0.0.1:42528 status: last packet 2 at 2024-04-04 17:08:05.929086978 +0300 MSK with 0.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:42528
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:42528
+2024/04/04 17:08:05 127.0.0.1:42528 status: last packet 3 at 2024-04-04 17:08:05.929262423 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:42528
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:42528
+2024/04/04 17:08:05 127.0.0.1:42528 status: last packet 4 at 2024-04-04 17:08:05.929326587 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:42528
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:42528
+2024/04/04 17:08:05 127.0.0.1:42528 status: last packet 5 at 2024-04-04 17:08:05.929374921 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:42528
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:42528
+2024/04/04 17:08:05 127.0.0.1:42528 status: last packet 6 at 2024-04-04 17:08:05.929429964 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:42528
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:42528
+2024/04/04 17:08:05 127.0.0.1:42528 status: last packet 7 at 2024-04-04 17:08:05.929481227 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:42528
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:42528
+2024/04/04 17:08:05 127.0.0.1:42528 status: last packet 8 at 2024-04-04 17:08:05.929517798 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:42528
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:42528
+2024/04/04 17:08:05 127.0.0.1:42528 status: last packet 9 at 2024-04-04 17:08:05.929559778 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:42528
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:42528
+2024/04/04 17:08:05 127.0.0.1:42528 status: last packet 10 at 2024-04-04 17:08:05.92959667 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:42528
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:43525
+2024/04/04 17:08:05 127.0.0.1:43525 status: last packet 7 at 2024-04-04 17:08:05.939859725 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:43525
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:43525
+2024/04/04 17:08:05 127.0.0.1:43525 status: last packet 8 at 2024-04-04 17:08:05.939984288 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:43525
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:43525
+2024/04/04 17:08:05 127.0.0.1:43525 status: last packet 9 at 2024-04-04 17:08:05.940039755 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:43525
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:43525
+2024/04/04 17:08:05 127.0.0.1:43525 status: last packet 10 at 2024-04-04 17:08:05.94012852 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:43525
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:35496
+2024/04/04 17:08:05 127.0.0.1:35496 status: last packet 3 at 2024-04-04 17:08:05.951181009 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:35496
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:35496
+2024/04/04 17:08:05 127.0.0.1:35496 status: last packet 4 at 2024-04-04 17:08:05.95153694 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:35496
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:35496
+2024/04/04 17:08:05 127.0.0.1:35496 status: last packet 5 at 2024-04-04 17:08:05.951772831 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:35496
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:35496
+2024/04/04 17:08:05 127.0.0.1:35496 status: last packet 6 at 2024-04-04 17:08:05.952295437 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:35496
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:35496
+2024/04/04 17:08:05 127.0.0.1:35496 status: last packet 7 at 2024-04-04 17:08:05.952445313 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:05 sent response to 127.0.0.1:35496
+2024/04/04 17:08:05 got package bytes from 127.0.0.1:35496
+2024/04/04 17:08:05 simulating 20%% loss
+2024/04/04 17:08:06 got package bytes from 127.0.0.1:58382
+2024/04/04 17:08:06 127.0.0.1:58382 status: last packet 7 at 2024-04-04 17:08:06.920813598 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:06 sent response to 127.0.0.1:58382
+2024/04/04 17:08:06 got package bytes from 127.0.0.1:58382
+2024/04/04 17:08:06 127.0.0.1:58382 status: last packet 8 at 2024-04-04 17:08:06.921107152 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:06 sent response to 127.0.0.1:58382
+2024/04/04 17:08:06 got package bytes from 127.0.0.1:58382
+2024/04/04 17:08:06 127.0.0.1:58382 status: last packet 9 at 2024-04-04 17:08:06.921332439 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:06 sent response to 127.0.0.1:58382
+2024/04/04 17:08:06 got package bytes from 127.0.0.1:58382
+2024/04/04 17:08:06 simulating 20%% loss
+2024/04/04 17:08:06 got package bytes from 127.0.0.1:35496
+2024/04/04 17:08:06 127.0.0.1:35496 status: last packet 9 at 2024-04-04 17:08:06.952832074 +0300 MSK with -100.000000% loss
+2024/04/04 17:08:06 sent response to 127.0.0.1:35496
+2024/04/04 17:08:06 got package bytes from 127.0.0.1:35496
+2024/04/04 17:08:06 simulating 20%% loss
+2024/04/04 17:08:11 removing client 127.0.0.1:42528 after 5.970588189s
+2024/04/04 17:08:11 removing client 127.0.0.1:52107 after 5.991479839s
+2024/04/04 17:08:11 removing client 127.0.0.1:43525 after 5.960131066s
+2024/04/04 17:08:16 removing client 127.0.0.1:58382 after 9.976215334s
+2024/04/04 17:08:16 removing client 127.0.0.1:35496 after 9.944732428s
+```
+
+Клиент:
+```bash
+petrukhinandrew@petrukhinandrew:~/Documents/networks-course/lab07/echo-server/client$ go run main.go -m heartbeat -c 5
+2024/04/04 17:08:04 running client in heartbeat mode with 5 clients
+2024/04/04 17:08:04 starting client 0
+2024/04/04 17:08:04 client 0 on 127.0.0.1:52107
+2024/04/04 17:08:04 client 0 sent 0 HB
+2024/04/04 17:08:04 client 0 got response. time: 186.321µs
+2024/04/04 17:08:04 client 0 sent 1 HB
+2024/04/04 17:08:04 client 0 got response. time: 77.283µs
+2024/04/04 17:08:04 client 0 sent 2 HB
+2024/04/04 17:08:04 client 0 got response. time: 45.711µs
+2024/04/04 17:08:04 client 0 sent 3 HB
+2024/04/04 17:08:04 client 0 got response. time: 37.145µs
+2024/04/04 17:08:04 client 0 sent 4 HB
+2024/04/04 17:08:04 client 0 got response. time: 27.823µs
+2024/04/04 17:08:04 client 0 sent 5 HB
+2024/04/04 17:08:04 client 0 got response. time: 34.042µs
+2024/04/04 17:08:04 client 0 sent 6 HB
+2024/04/04 17:08:04 starting client 1
+2024/04/04 17:08:04 client 1 on 127.0.0.1:58382
+2024/04/04 17:08:04 client 1 sent 0 HB
+2024/04/04 17:08:04 client 1 got response. time: 104.047µs
+2024/04/04 17:08:04 client 1 sent 1 HB
+2024/04/04 17:08:04 starting client 2
+2024/04/04 17:08:04 client 2 on 127.0.0.1:42528
+2024/04/04 17:08:04 client 2 sent 0 HB
+2024/04/04 17:08:04 starting client 3
+2024/04/04 17:08:04 client 3 on 127.0.0.1:43525
+2024/04/04 17:08:04 client 3 sent 0 HB
+2024/04/04 17:08:04 client 3 got response. time: 151.632µs
+2024/04/04 17:08:04 client 3 sent 1 HB
+2024/04/04 17:08:04 client 3 got response. time: 72.291µs
+2024/04/04 17:08:04 client 3 sent 2 HB
+2024/04/04 17:08:04 client 3 got response. time: 88.155µs
+2024/04/04 17:08:04 client 3 sent 3 HB
+2024/04/04 17:08:04 client 3 got response. time: 32.61µs
+2024/04/04 17:08:04 client 3 sent 4 HB
+2024/04/04 17:08:04 client 3 got response. time: 62.108µs
+2024/04/04 17:08:04 client 3 sent 5 HB
+2024/04/04 17:08:04 starting client 4
+2024/04/04 17:08:04 client 4 on 127.0.0.1:35496
+2024/04/04 17:08:04 client 4 sent 0 HB
+2024/04/04 17:08:04 client 4 got response. time: 129.308µs
+2024/04/04 17:08:04 client 4 sent 1 HB
+2024/04/04 17:08:05 client 0 request timed out
+2024/04/04 17:08:05 client 0 sent 7 HB
+2024/04/04 17:08:05 client 0 got response. time: 276.453µs
+2024/04/04 17:08:05 client 0 sent 8 HB
+2024/04/04 17:08:05 client 0 got response. time: 141.14µs
+2024/04/04 17:08:05 client 0 sent 9 HB
+2024/04/04 17:08:05 client 1 request timed out
+2024/04/04 17:08:05 client 1 sent 2 HB
+2024/04/04 17:08:05 client 1 got response. time: 246.166µs
+2024/04/04 17:08:05 client 1 sent 3 HB
+2024/04/04 17:08:05 client 1 got response. time: 263.277µs
+2024/04/04 17:08:05 client 1 sent 4 HB
+2024/04/04 17:08:05 client 1 got response. time: 108.371µs
+2024/04/04 17:08:05 client 1 sent 5 HB
+2024/04/04 17:08:05 client 2 request timed out
+2024/04/04 17:08:05 client 2 sent 1 HB
+2024/04/04 17:08:05 client 2 got response. time: 153.269µs
+2024/04/04 17:08:05 client 2 sent 2 HB
+2024/04/04 17:08:05 client 2 got response. time: 58.267µs
+2024/04/04 17:08:05 client 2 sent 3 HB
+2024/04/04 17:08:05 client 2 got response. time: 43.863µs
+2024/04/04 17:08:05 client 2 sent 4 HB
+2024/04/04 17:08:05 client 2 got response. time: 50.368µs
+2024/04/04 17:08:05 client 2 sent 5 HB
+2024/04/04 17:08:05 client 2 got response. time: 48.013µs
+2024/04/04 17:08:05 client 2 sent 6 HB
+2024/04/04 17:08:05 client 2 got response. time: 32.825µs
+2024/04/04 17:08:05 client 2 sent 7 HB
+2024/04/04 17:08:05 client 2 got response. time: 38.618µs
+2024/04/04 17:08:05 client 2 sent 8 HB
+2024/04/04 17:08:05 client 2 got response. time: 32.883µs
+2024/04/04 17:08:05 client 2 sent 9 HB
+2024/04/04 17:08:05 client 2 got response. time: 42.157µs
+2024/04/04 17:08:05 client 2: rtt min/avg/max/mdev = 32.825µs/55.584µs/153.269µs/47µs
+2024/04/04 17:08:05 client 2: package loss = 10%
+2024/04/04 17:08:05 client 3 request timed out
+2024/04/04 17:08:05 client 3 sent 6 HB
+2024/04/04 17:08:05 client 3 got response. time: 117.789µs
+2024/04/04 17:08:05 client 3 sent 7 HB
+2024/04/04 17:08:05 client 3 got response. time: 51.591µs
+2024/04/04 17:08:05 client 3 sent 8 HB
+2024/04/04 17:08:05 client 3 got response. time: 83.507µs
+2024/04/04 17:08:05 client 3 sent 9 HB
+2024/04/04 17:08:05 client 3 got response. time: 61.482µs
+2024/04/04 17:08:05 client 3: rtt min/avg/max/mdev = 32.61µs/80.129µs/151.632µs/62µs
+2024/04/04 17:08:05 client 3: package loss = 10%
+2024/04/04 17:08:05 client 4 request timed out
+2024/04/04 17:08:05 client 4 sent 2 HB
+2024/04/04 17:08:05 client 4 got response. time: 193.116µs
+2024/04/04 17:08:05 client 4 sent 3 HB
+2024/04/04 17:08:05 client 4 got response. time: 162.526µs
+2024/04/04 17:08:05 client 4 sent 4 HB
+2024/04/04 17:08:05 client 4 got response. time: 499.328µs
+2024/04/04 17:08:05 client 4 sent 5 HB
+2024/04/04 17:08:05 client 4 got response. time: 128.615µs
+2024/04/04 17:08:05 client 4 sent 6 HB
+2024/04/04 17:08:05 client 4 got response. time: 83.162µs
+2024/04/04 17:08:05 client 4 sent 7 HB
+2024/04/04 17:08:06 client 0 request timed out
+2024/04/04 17:08:06 client 0: rtt min/avg/max/mdev = 27.823µs/103.239µs/276.453µs/95µs
+2024/04/04 17:08:06 client 0: package loss = 20%
+2024/04/04 17:08:06 client 1 request timed out
+2024/04/04 17:08:06 client 1 sent 6 HB
+2024/04/04 17:08:06 client 1 got response. time: 255.329µs
+2024/04/04 17:08:06 client 1 sent 7 HB
+2024/04/04 17:08:06 client 1 got response. time: 209.866µs
+2024/04/04 17:08:06 client 1 sent 8 HB
+2024/04/04 17:08:06 client 1 got response. time: 130.585µs
+2024/04/04 17:08:06 client 1 sent 9 HB
+2024/04/04 17:08:06 client 4 request timed out
+2024/04/04 17:08:06 client 4 sent 8 HB
+2024/04/04 17:08:06 client 4 got response. time: 189.42µs
+2024/04/04 17:08:06 client 4 sent 9 HB
+2024/04/04 17:08:07 client 1 request timed out
+2024/04/04 17:08:07 client 1: rtt min/avg/max/mdev = 104.047µs/188.234µs/263.277µs/150µs
+2024/04/04 17:08:07 client 1: package loss = 30%
+2024/04/04 17:08:07 client 4 request timed out
+2024/04/04 17:08:07 client 4: rtt min/avg/max/mdev = 83.162µs/197.925µs/499.328µs/172µs
+2024/04/04 17:08:07 client 4: package loss = 30%
+```
 
 ## Задачи
 
