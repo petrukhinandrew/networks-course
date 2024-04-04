@@ -104,7 +104,7 @@ func runHeartbeat(conn *net.UDPConn, threshold int) {
 		}
 	}(conn, connChan)
 	thresholdDur := time.Second * time.Duration(threshold)
-	cleanupTimer := time.NewTicker(thresholdDur)
+	cleanupTimer := time.NewTicker(thresholdDur / time.Duration(2))
 	for {
 		np := udpPair{}
 		select {
