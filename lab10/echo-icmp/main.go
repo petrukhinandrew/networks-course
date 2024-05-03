@@ -46,7 +46,7 @@ func BodySum(packet *icmp.Message) int {
 
 func ReadAndParseMessage(conn *icmp.PacketConn) (*icmp.Message, error) {
 	resp := make([]byte, 1024)
-	conn.SetReadDeadline(time.Now().Add(time.Second))
+	conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 	_, _, err := conn.ReadFrom(resp)
 
 	if err != nil {
