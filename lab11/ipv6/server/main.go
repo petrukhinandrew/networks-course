@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -8,7 +10,10 @@ import (
 )
 
 func main() {
-	addr, err := net.ResolveTCPAddr("tcp6", ":8080")
+	portFlag := flag.Int("port", 8080, "port")
+	flag.Parse()
+	port := fmt.Sprintf("%d", *portFlag)
+	addr, err := net.ResolveTCPAddr("tcp6", ":"+port)
 	if err != nil {
 		log.Fatalf("resolve: %s\n", err.Error())
 	}
@@ -18,7 +23,7 @@ func main() {
 	}
 	defer listener.Close()
 
-	log.Println("listening on: 8080")
+	log.Println("listening on: port")
 	for {
 		func() {
 			c, err := listener.Accept()

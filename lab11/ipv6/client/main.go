@@ -12,7 +12,7 @@ func main() {
 	portFlag := flag.Int("port", 8080, "server port")
 	msgFlag := flag.String("msg", "echo test msg", "msg to send")
 	flag.Parse()
-	addr, err := net.ResolveTCPAddr("tcp6", ":"+fmt.Sprintf("%d", *portFlag))
+	addr, err := net.ResolveTCPAddr("tcp6", fmt.Sprintf(":%d", *portFlag))
 	if err != nil {
 		log.Fatalf("resolve: %s\n", err.Error())
 	}
