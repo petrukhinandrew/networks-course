@@ -14,7 +14,10 @@
 Приложите скриншоты полученных сообщений (для обоих форматов).
 
 #### Демонстрация работы
-todo
+Для получения подсказки можно запустить `go run main.go sendstd.go sendsock.go fmtemail.go --help`
+
+Для запуска из `smtp` `go run main.go sendstd.go sendsock.go fmtemail.go -pwd <pwd>`, где `<pwd>` - пароль для google smpt сервера 
+ ![](images/std.png)
 
 ### 2. SMTP-клиент (3 балла)
 Разработайте простой почтовый клиент, который отправляет текстовые сообщения
@@ -27,7 +30,13 @@ todo
 Сделайте скриншоты полученных сообщений.
 
 #### Демонстрация работы
-todo
+Для получения подсказки можно запустить `go run main.go sendstd.go sendsock.go fmtemail.go --help`
+
+Для запуска из `smtp` `go run main.go sendstd.go sendsock.go fmtemail.go -mode sock -pwd <pwd>`, где `<pwd>` - пароль для google smpt сервера 
+
+![](images/sockres.png)
+![](images/sockseq.png)
+
 
 ### 3. SMTP-клиент: бинарные данные (2 балла)
 Модифицируйте ваш SMTP-клиент из предыдущего задания так, чтобы теперь он мог
@@ -56,7 +65,9 @@ Paint (на стороне сервера). Или запустить консо
 сервере) отправляется обратно клиенту.
 
 #### Демонстрация работы
-todo
+Запуск из `remote_call` `go run main.go -s` для старта сервера, `go run main.go -c -cmd "ping -c 3 yandex.ru"` для старта клиента 
+
+![](images/rc.png)
 
 ### В. Широковещательная рассылка через UDP (2 балла)
 Реализуйте сервер (веб-службу) и клиента с использованием интерфейса Socket API, которая:
@@ -65,7 +76,9 @@ todo
 - клиент службы выводит на консоль сообщаемое ему время
 
 #### Демонстрация работы
-todo
+Запуск из `broadcast` `python3 server.py` и `python3 client.py` соответственно
+
+![](images/udpbrd.png)
 
 ## Задачи
 
