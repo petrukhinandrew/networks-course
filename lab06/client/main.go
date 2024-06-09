@@ -37,7 +37,9 @@ loop:
 		log.Println(tokens)
 		switch tokens[0] {
 		case "h":
+			fallthrough
 		case "?":
+			fallthrough
 		case "help":
 			fmt.Printf("help : current help text\n ls   : list files tree\nload : [ftp src] [local dst]\nstore: [local src] [ftp dest]\nquit : quit client\n")
 		case "ls":
